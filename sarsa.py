@@ -31,10 +31,10 @@ class StateActionFeatureVectorWithTile:
         ) = self.create_tilings(state_low, state_high, num_tilings, tile_width)
         self.num_tilings = num_tilings
 
-    # groups tilings by group where each tiling group
-    # is a d-dimensional array of arrays
-    # where each of the d elements is an array of tile intervals,
-    # one for each of the d dimensions of state
+    # Returns num_tilings tilings
+    # Each tiling contains d arrays of intervals
+    # Each array of intervals defines the buckets/markers
+    # for each of the d dimensions of state
     def create_tilings(self, state_low, state_high, num_tilings, tile_width):
         assert (
             len(state_low) == len(state_high) == len(tile_width)
@@ -50,19 +50,21 @@ class StateActionFeatureVectorWithTile:
         offset_per_dim = []
         bounds_per_dim = []
 
-        # tile intervals for each tiling
+        # Tile intervals/markers for each tiling
+        # Each element tile_intervals will itself be list of d intervals
+        # for each dimension of state
         tile_intervals = [[] for _ in range(num_tilings)]
 
-        # cumulative product of dimensions for determining tile number in tiling
+        # Cumulative product of dimensions for determining tile number in tiling
         cum_prod_dims = [1]
 
-        # each tiling will cover all dimensions of the state exactly oce
+        # Each tiling will cover all dimensions of the state exactly once
         for tiling_index in range(num_tilings):
 
             tiles_per_dim.append([])
             offset_per_dim.append([])
 
-            # determine the tile intervals for each dimension of the state
+            # Determine the tile intervals for each dimension of the state
             for dim in range(d):
                 num_tiles = (
                     int(np.ceil((state_high[dim] - state_low[dim]) / tile_width[dim]))
@@ -79,12 +81,11 @@ class StateActionFeatureVectorWithTile:
                         [state_low[dim], state_low[dim] + tile_width[dim] * num_tiles]
                     )
 
-                # determine the tile intervals
-                # each adjacent pair of interval markers will mark the start and end of each tile in that tiling
+                # Determine the tile intervals
+                # Each adjacent pair of interval markers will mark the start and end of each tile in that tiling
                 # np.linspace(low, high, n) partitions range [low,high] into n-1 partitions and returns the markers
                 # eg. np.linspace(0,1,3) -> [0, 0.5, 1]
-                # take [1: -1] for convenient bisection when searching for the interval
-
+                # Take [1: -1] for convenient bisection when searching for the interval
                 markers = np.linspace(low, high, num_tiles + 1)[1:-1]
 
                 tile_intervals[tiling_index].append(markers)
@@ -92,7 +93,7 @@ class StateActionFeatureVectorWithTile:
                 tiles_per_dim[-1].append(num_tiles)
                 offset_per_dim[-1].append(offset)
 
-                # last element is one_hot_encoding length for single tiling
+                # Last element is one_hot_encoding length for single tiling
                 if tiling_index == 0:
                     cum_prod_dims.append(num_tiles * cum_prod_dims[-1])
 
@@ -123,8 +124,7 @@ class StateActionFeatureVectorWithTile:
 
         tiling_offset = a * self.cum_prod_dims[-1] * self.num_tilings
 
-        # for every tiling
-        # loop through all dimensions of the state
+        # For every tiling, loop through all dimensions of the state
         # to find which tile the current dimension of state falls in
         for tiling_index in range(self.num_tilings):
             # grid_encoding.append([])
